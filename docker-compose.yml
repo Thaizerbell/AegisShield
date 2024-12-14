@@ -1,0 +1,118 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - POSTGRES_HOST=db
+      - REDIS_HOST=redis
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+    depends_on:
+      - db
+      - redis
+      - elasticsearch
+    volumes:
+      - ./app:/app
+    networks:
+      - security_network
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/worker/Dockerfile
+    environment:
+      - POSTGRES_HOST=db
+      - REDIS_HOST=redis
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+    depends_on:
+      - db
+      - redis
+      - elasticsearch
+    volumes:
+      - ./app:/app
+    networks:
+      - security_network
+
+  db:
+    image: postgres:14-alpine
+    environment:
+      - POSTGRES_USER=security_user
+      - POSTGRES_PASSWORD=security_password
+      - POSTGRES_DB=security_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - security_network
+
+  redis:
+    image: redis:6-alpine
+    volumes:
+      - redis_data:/data
+    networks:
+      - security_network
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - security_network
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    networks:
+      - security_network
+
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    volumes:
+      - ./docker/prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9090:9090"
+    networks:
+      - security_network
+
+  grafana:
+    image: grafana/grafana:10.0.0
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    depends_on:
+      - prometheus
+    networks:
+      - security_network
+
+volumes:
+  postgres_data:
+  redis_data:
+  elasticsearch_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  security_network:
+    driver: bridge
