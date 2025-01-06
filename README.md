@@ -6,11 +6,11 @@ Aegis Shield is a comprehensive security system designed to protect enterprise a
 
 ```bash
 # Install from PyPI
-pip install aegis-shield
+pip install AegisShield
 
 # Or install from source
-git clone https://github.com/aegisshield/aegis-shield.git
-cd aegis-shield
+git clone https://github.com/AegisShield/AegisShield.git
+cd AegisShield
 pip install -e .
 ```
 
