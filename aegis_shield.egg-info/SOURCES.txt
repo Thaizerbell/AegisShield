@@ -1,0 +1,8 @@
+README.md
+setup.py
+aegis_shield.egg-info/PKG-INFO
+aegis_shield.egg-info/SOURCES.txt
+aegis_shield.egg-info/dependency_links.txt
+aegis_shield.egg-info/entry_points.txt
+aegis_shield.egg-info/requires.txt
+aegis_shield.egg-info/top_level.txt
