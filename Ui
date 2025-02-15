@@ -1,66 +1,78 @@
-/Users/thaizerbell/AegisShield/frontend<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pop-up Example</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-    <button id="openPopup">Open Pop-up</button>
-    <div id="popup" class="popup">
-        <div class="popup-content">
-            <span id="closePopup" class="close">&times;</span>
-            <h2>Welcome!</h2>
-            <p>This is a user-friendly pop-up window.</p>
-        </div>
-    </div>
-    <script src="script.js"></script>
-</body>
-</html>body {
-    font-family: Arial, sans-serif;
+security-system-ui/
+├── public/
+│   └── index.html  (Basic HTML structure)
+├── src/
+│   ├── App.js       (Main application component)
+│   ├── components/
+│   │   ├── Auth/
+│   │   │   ├── Login.js      (Login form)
+│   │   │   └── Register.js   (Registration form - optional)
+│   │   ├── Dashboard/
+│   │   │   ├── Overview.js    (Main dashboard view)
+│   │   │   ├── ThreatMap.js  (Optional - geographical map)
+│   │   │   └── RecentActivity.js (Recent activity log)
+│   │   ├── History/
+│   │   │   └── AttackLog.js  (Table/list of attack history)
+│   │   ├── Settings/
+│   │   │   ├── GeneralSettings.js
+│   │   │   ├── UserManagement.js
+│   │   │   └── AlertSettings.js
+│   │   ├── Navigation.js  (Sidebar or top navigation)
+│   │   └── UIComponents/ (Reusable UI elements - buttons, inputs, etc.)
+│   │       ├── Button.js
+│   │       ├── Input.js
+│   │       ├── Table.js
+│   │       └── Alert.js
+│   ├── services/
+│   │   └── api.js      (Handles communication with the backend API)
+│   ├── context/       (For managing global application state - optional)
+│   │   └── AuthContext.js (Example: Managing user authentication)
+│   └── styles/
+│       ├── App.css
+│       ├── components/  (Styles for individual components)
+│       └── UIComponents/ (Styles for reusable UI elements)
+└── package.json     (Project dependencies and scripts)
+
+
+Key Code Examples (React - using functional components and hooks):
+1. src/App.js (Main Application Component):
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import Login from './components/Auth/Login';
+import Dashboard from './components/Dashboard/Overview';
+import Navigation from './components/Navigation';
+import AttackLog from './components/History/AttackLog';
+import GeneralSettings from './components/Settings/GeneralSettings';
+import UserManagement from './components/Settings/UserManagement';
+import AlertSettings from './components/Settings/AlertSettings';
+import { AuthProvider, useAuth } from './context/AuthContext'; // Import AuthContext
+import './styles/App.css';
+
+function App() {
+  return (
+    <AuthProvider> {/* Wrap the app with AuthProvider */}
+      <Router>
+        <AppContent />
+      </Router>
+    </AuthProvider>
+  );
 }
-
-.popup {
-    display: none;
-    position: fixed;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    justify-content: center;
-    align-items: center;
+function AppContent() {
+    const { isAuthenticated } = useAuth();
+    return(
+        <>
+            <Navigation />
+            <div className="main-content">
+                <Routes>
+                    <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Login />} />
+                    <Route path="/dashboard" element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />} />
+                    <Route path="/history" element={isAuthenticated ? <AttackLog /> : <Navigate to="/login" />} />
+                    <Route path="/settings/general" element={isAuthenticated ? <GeneralSettings /> : <Navigate to="/login" />} />
+                    <Route path="/settings/users" element={isAuthenticated ? <UserManagement /> : <Navigate to="/login" />} />
+                    <Route path="/settings/alerts" element={isAuthenticated ? <AlertSettings /> : <Navigate to="/login" />} />
+                    <Route path="*" element={<Navigate to="/login" />} />
+                </Routes>
+            </div>
+        </>
+    )
 }
-
-.popup-content {
-    background-color: white;
-    padding: 20px;
-    border-radius: 5px;
-    text-align: center;
-}
-
-.close {
-    cursor: pointer;
-    float: right;
-    font-size: 20px;
-}document.getElementById('openPopup').onclick = function() {
-    document.getElementById('popup').style.display = 'flex';
-}
-
-document.getElementById('closePopup').onclick = function() {
-    document.getElementById('popup').style.display = 'none';
-}
-
-window.onclick = function(event) {
-    if (event.target == document.getElementById('popup')) {
-        document.getElementById('popup').style.display = 'none';
-    }
-}FROM nginx:alpine
-COPY . /usr/share/nginx/htmlversion: '3.8'
-
-services:
-  web:
-    build: ./frontend  # Path to your front-end Dockerfile
-    ports:
-      - "8080:80"  # Expose port 80 of the container on port 8080 of the host
