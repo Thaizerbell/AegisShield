@@ -75,4 +75,399 @@ function AppContent() {
             </div>
         </>
     )
+}src/components/Auth/Login.js (Login Form):
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext'; // Import useAuth
+import Input from '../UIComponents/Input';
+import Button from '../UIComponents/Button';
+import '../../styles/components/Auth.css'
+
+function Login() {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+  const { login } = useAuth(); // Use the login function from AuthContext
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError('');
+
+    try {
+      // Call the login function from AuthContext (which interacts with the API)
+      await login(username, password);
+      navigate('/dashboard'); // Redirect to dashboard on successful login
+    } catch (err) {
+      setError(err.message || 'Login failed. Please check your credentials.');
+    }
+  };
+
+  return (
+    <div className="login-container">
+      <h2>Login</h2>
+      {error && <p className="error-message">{error}</p>}
+      <form onSubmit={handleSubmit}>
+        <Input
+          label="Username"
+          type="text"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          required
+        />
+        <Input
+          label="Password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
+        <Button type="submit">Login</Button>
+      </form>
+    </div>
+  );
+}src/components/Navigation.js (Sidebar Navigation):
+import React from 'react';
+import { NavLink } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import '../styles/components/Navigation.css'
+
+function Navigation() {
+
+    const {isAuthenticated, logout} = useAuth();
+    if(!isAuthenticated) return null;
+  return (
+    <nav className="sidebar">
+      <ul>
+        <li>
+          <NavLink to="/dashboard" >
+            Dashboard
+          </NavLink>
+        </li>
+        <li>
+          <NavLink to="/history" >
+            Attack History
+          </NavLink>
+        </li>
+        <li>
+          <NavLink to="/settings/general" >
+            General Settings
+          </NavLink>
+        </li>
+        <li>
+            <NavLink to="/settings/users">
+                User Management
+            </NavLink>
+        </li>
+          <li>
+              <NavLink to="/settings/alerts">
+                  Alert Settings
+              </NavLink>
+          </li>
+          <li>
+              <button onClick={logout} className='logout-button'>Logout</button>
+          </li>
+      </ul>
+    </nav>
+  );
+}src/components/Dashboard/Overview.js (Dashboard):
+import React, { useState, useEffect } from 'react';
+import * as api from '../../services/api'; // Import API functions
+import RecentActivity from './RecentActivity';
+import '../../styles/components/Dashboard.css'
+
+
+function Dashboard() {
+  const [threatData, setThreatData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const data = await api.getDashboardData(); // Fetch data from API
+        setThreatData(data);
+      } catch (err) {
+        setError(err.message || 'Failed to fetch dashboard data.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+
+    const intervalId = setInterval(fetchData, 60000); // Refresh data every 60 seconds
+
+    return () => clearInterval(intervalId); // Cleanup on unmount
+  }, []);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
+
+  return (
+    <div className="dashboard">
+      <h2>Security Dashboard</h2>
+      <div className="dashboard-widgets">
+        <div className="widget">
+          <h3>Real-time Threats</h3>
+          {threatData && threatData.realTimeThreats && threatData.realTimeThreats.length > 0 ? (
+                threatData.realTimeThreats.map((threat, index) => (
+                    <div key={index} className={`threat-item severity-${threat.severity}`}>
+                        <p>Type: {threat.type}</p>
+                        <p>Source: {threat.source}</p>
+                        <p>Timestamp: {new Date(threat.timestamp).toLocaleString()}</p>
+                    </div>
+                ))
+          ) : (
+            <p>No real-time threats detected.</p>
+          )}
+        </div>
+        <RecentActivity />
+        {/* Add other widgets (e.g., ThreatMap) here */}
+      </div>
+    </div>
+  );
+}src/components/Dashboard/RecentActivity.js
+import React, {useState, useEffect} from 'react';
+import * as api from "../../services/api";
+
+const RecentActivity = () => {
+    const [recentActivity, setRecentActivity] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const fetchRecentActivity = async () => {
+            try{
+                const data = await api.getRecentActivity();
+                setRecentActivity(data);
+            } catch (error){
+                setError(error.message || 'Failed to fetch the Recent Activity');
+            } finally {
+                setLoading(false)
+            }
+        };
+        fetchRecentActivity();
+    }, []);
+
+    if (loading) {
+        return <div>Loading recent activity...</div>;
+    }
+    if (error) {
+        return <div>Error: {error}</div>
+    }
+    return (
+        <div className='widget'>
+            <h3>Recent Activity</h3>
+            {recentActivity.length > 0 ? (
+                <ul>
+                    {recentActivity.map((activity, index) => (
+                        <li key={index}>
+                            <p>{activity.timestamp}: {activity.description}</p>
+                        </li>
+                    ))}
+                </ul>
+            ) : ( <p> No Recent Activity</p>
+            )}
+        </div>
+    );
+};
+src/components/History/AttackLog.js (Attack History):
+import React, { useState, useEffect } from 'react';
+import * as api from '../../services/api';
+import Table from '../UIComponents/Table';
+import '../../styles/components/History.css'
+
+function AttackLog() {
+  const [attacks, setAttacks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchAttacks = async () => {
+      try {
+        const data = await api.getAttackHistory();
+        setAttacks(data);
+      } catch (err) {
+        setError(err.message || 'Failed to fetch attack history.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAttacks();
+  }, []);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
+  const columns = [
+        { Header: 'Timestamp', accessor: 'timestamp' },
+        { Header: 'Type', accessor: 'type' },
+        { Header: 'Source', accessor: 'source' },
+        { Header: 'Target', accessor: 'target' },
+        { Header: 'Severity', accessor: 'severity' },
+    ];
+
+  return (
+    <div className="attack-log">
+      <h2>Cyber Attack History</h2>
+      <Table columns={columns} data={attacks} />
+    </div>
+  );
+}src/services/api.js (API Interaction - Example):
+// Mock API calls (replace with actual API endpoints)
+
+const API_BASE_URL = '/api'; //  Replace with your actual API base URL
+
+export const loginUser = async (username, password) => {
+  const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ username, password }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Login failed');
+  }
+
+  return await response.json(); //  Should return user data and token
+};
+
+export const getDashboardData = async () => {
+  const response = await fetch(`${API_BASE_URL}/dashboard`, {
+      headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}` // Send the token.
+      }
+  });
+    if (!response.ok) {
+        throw new Error('Failed to get Dashboard Data');
+    }
+    return response.json();
+};
+
+export const getAttackHistory = async () => {
+    const response = await fetch(`${API_BASE_URL}/history`,{
+        headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+    });
+    if(!response.ok) {
+        throw new Error('Failed to get Attack History');
+    }
+    return response.json();
+};
+
+export const getRecentActivity = async () => {
+  const response = await fetch(`${API_BASE_URL}/recent-activity`, {
+      headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+  });
+    if(!response.ok){
+        throw new Error('Failed to get Recent Activity');
+    }
+    return response.json();
+};
+
+// Add other API functions (getSettings, updateSettings, getUsers, etc.)src/context/AuthContext.js (Authentication Context):
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import * as api from '../services/api';
+
+const AuthContext = createContext();
+
+export const AuthProvider = ({ children }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState(null);
+
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        if(token){
+            setIsAuthenticated(true);
+        }
+    }, []);
+
+  const login = async (username, password) => {
+    const { user: userData, token } = await api.loginUser(username, password);
+    localStorage.setItem('token', token); // Store the token.
+    setIsAuthenticated(true);
+    setUser(userData);
+  };
+
+  const logout = () => {
+    localStorage.removeItem('token'); // Remove token
+    setIsAuthenticated(false);
+    setUser(null);
+  };
+
+  return (
+    <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => useContext(AuthContext);src/components/UIComponents/Button.js (Reusable Button):
+import React from 'react';
+import '../../styles/UIComponents/Button.css'
+function Button({ children, onClick, type = 'button', disabled = false, className = '' }) {
+    return (
+        <button
+            type={type}
+            onClick={onClick}
+            disabled={disabled}
+            className={`custom-button ${className}`} // Use a base class and allow additional classes
+        >
+            {children}
+        </button>
+    );
 }
+export default Button;src/components/UIComponents/Input.js (Reusable Input):
+import React from 'react';
+import  '../../styles/UIComponents/Input.css'
+
+function Input({ label, type, value, onChange, required, placeholder, name }) {
+    return (
+        <div className="input-group">
+            <label>{label}</label>
+            <input
+                type={type}
+                value={value}
+                onChange={onChange}
+                required={required}
+                placeholder={placeholder}
+                name={name}
+            />
+        </div>
+    );
+}
+export default Input;src/components/UIComponents/Table.js
+import React from 'react';
+import '../../styles/UIComponents/Table.css'
+const Table = ({columns, data}) => {
+    return (
+        <table>
+            <thead>
+            <tr>
+                {columns.map((column) => (
+                    <th key={column.Header}>{column.Header}</th>
+                ))}
+            </tr>
+            </thead>
+            <tbody>
+            {data.map((item, index) => (
+                <tr key={index}>
+                    {columns.map((column) => (
+                        <td key={column.accessor}>{item[column]}
